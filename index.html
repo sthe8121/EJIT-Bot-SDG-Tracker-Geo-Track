@@ -1,218 +1,219 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SDG Tracker</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      font-family: 'Roboto', Arial, sans-serif;
-      background-color: #f3f4f6;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 800px;
-      margin: 20px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    h1 {
-      font-size: 20px;
-      font-weight: 600;
-      color: #0e76a8; /* LinkedIn blue */
-      text-align: center;
-    }
-    p {
-      font-size: 14px;
-      color: #6b7280; /* Neutral gray */
-      text-align: center;
-      margin-top: 5px;
-    }
-    .button {
-      display: inline-block;
-      padding: 10px 20px;
-      font-size: 14px;
-      color: white;
-      background-color: #0e76a8; /* LinkedIn blue */
-      border: none;
-      border-radius: 4px;
-      text-align: center;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    .button:hover {
-      background-color: #084c6e;
-    }
-    .credit {
-      font-size: 12px;
-      color: #6b7280; /* Neutral gray */
-      margin-top: 10px;
-      text-align: center;
-    }
-    .credit a {
-      color: #0e76a8; /* LinkedIn blue */
-      text-decoration: none;
-    }
-    .credit a:hover {
-      text-decoration: underline;
-    }
-    .section {
-      margin-top: 20px;
-      padding: 15px;
-      border: 1px solid #e5e7eb; /* Light gray border */
-      border-radius: 8px;
-    }
-    .section h2 {
-      font-size: 16px;
-      font-weight: 500;
-      color: #374151; /* Dark gray */
-      margin-bottom: 10px;
-    }
-    .section p {
-      font-size: 12px;
-      color: #6b7280;
-    }
-    .input {
-      width: 100%;
-      padding: 10px;
-      font-size: 14px;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px;
-      margin-top: 10px;
-    }
-    .legend {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: white;
-      padding: 10px;
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      font-size: 12px;
-      line-height: 1.5;
-      z-index: 1000;
-    }
-    .format-text {
-      font-size: 12px;
-      color: #6b7280; /* Neutral gray */
-      margin-top: 10px;
-      text-align: left; /* Left-aligned text */
-    }
-    .format-text a {
-      color: #0e76a8; /* LinkedIn blue */
-      text-decoration: underline;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>🌍 SDG Global Tracker</h1>
-    <p>Visualize contributions to the UN SDGs across the globe.</p>
-    <p><strong>Join the tracking chain:</strong> Download an existing CSV, add your upload, and watch the data build up!</p>
-    <div class="text-center mt-4">
-      <button id="downloadCsv" class="button">Download Existing CSV</button>
-      <div class="credit">
-        by <a href="https://www.linkedin.com/in/sandra-dewi-7776953b/" target="_blank">Sandra Dewi</a> | GMIS Semarang | Environmental Justice in Technology Fellows for Summer 2025
-      </div>
-    </div>
-
-    <!-- File Upload Section -->
-    <div class="section">
-      <h2>Upload CSV File</h2>
-      <input type="file" id="csvFile" accept=".csv" class="input">
-      <p class="format-text">
-        Ensure your CSV follows the correct <a href="https://sthe8121.github.io/sthe8121/EJIT-Bot-SDG-Tracker-Geo-Track/SDGTemplate.csv" target="_blank">format</a>.
-      </p>
-      <p id="errorMessage" style="color: #dc2626; font-size: 12px; margin-top: 10px; display: none;">Invalid CSV format. Please use the provided template.</p>
-    </div>
-
-    <!-- Filtering Section -->
-    <div class="section">
-      <h2>Filter Data</h2>
-      <div class="flex space-x-4 mt-3">
-        <select id="filterSDG" class="input">
-          <option value="">Filter by SDG</option>
-          <option value="SDG 4">SDG 4: Quality Education</option>
-          <option value="SDG 13">SDG 13: Climate Action</option>
-        </select>
-        <select id="filterCountry" class="input">
-          <option value="">Filter by Country</option>
-          <option value="Indonesia">Indonesia</option>
-          <option value="USA">USA</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Pie Chart Section -->
-    <div class="section">
-      <h2>SDG Contributions (Pie Chart)</h2>
-      <canvas id="pieChart" class="mt-3"></canvas>
-    </div>
-
-    <!-- Bar Chart Section -->
-    <div class="section">
-      <h2>Contributions by Country (Bar Chart)</h2>
-      <canvas id="barChart" class="mt-3"></canvas>
-    </div>
-
-    <!-- Map Section -->
-    <div class="section">
-      <h2>Geotagged Contributions Map</h2>
-      <div id="map" style="height: 400px; width: 100%; position: relative;">
-        <div class="legend" id="legend"></div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Initialize Leaflet Map
-    const map = L.map('map').setView([20.0, 78.0], 3);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Prefilled Data for Map
-    const sampleMarkers = [
-      { lat: -6.2, lng: 106.8, label: "Indonesia: SDG 4" },
-      { lat: 37.8, lng: -122.4, label: "USA: SDG 13" }
-    ];
-    sampleMarkers.forEach(marker => {
-      L.marker([marker.lat, marker.lng]).addTo(map).bindPopup(marker.label);
-    });
-
-    // Prefilled Data for Charts
-    const pieChartCtx = document.getElementById('pieChart').getContext('2d');
-    const barChartCtx = document.getElementById('barChart').getContext('2d');
-
-    const pieChart = new Chart(pieChartCtx, {
-      type: 'pie',
-      data: {
-        labels: ['SDG 4: Quality Education', 'SDG 13: Climate Action'],
-        datasets: [{
-          data: [60, 40],
-          backgroundColor: ['#4CAF50', '#FF5722']
-        }]
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDG Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: 'Roboto', Arial, sans-serif;
+        background-color: #f3f4f6;
+        margin: 0;
+        padding: 0;
       }
-    });
-
-    const barChart = new Chart(barChartCtx, {
-      type: 'bar',
-      data: {
-        labels: ['Indonesia', 'USA'],
-        datasets: [{
-          label: 'Contributions',
-          data: [70, 30],
-          backgroundColor: ['#4CAF50', '#FF5722']
-        }]
+      .container {
+        max-width: 800px;
+        margin: 20px auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
-    });
-  </script>
-</body>
-</html>
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #0e76a8; /* LinkedIn blue */
+        text-align: center;
+      }
+      p {
+        font-size: 14px;
+        color: #6b7280; /* Neutral gray */
+        text-align: center;
+        margin-top: 5px;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 14px;
+        color: white;
+        background-color: #0e76a8; /* LinkedIn blue */
+        border: none;
+        border-radius: 4px;
+        text-align: center;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+      .button:hover {
+        background-color: #084c6e;
+      }
+      .credit {
+        font-size: 12px;
+        color: #6b7280; /* Neutral gray */
+        margin-top: 10px;
+        text-align: center;
+      }
+      .credit a {
+        color: #0e76a8; /* LinkedIn blue */
+        text-decoration: none;
+      }
+      .credit a:hover {
+        text-decoration: underline;
+      }
+      .section {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #e5e7eb; /* Light gray border */
+        border-radius: 8px;
+      }
+      .section h2 {
+        font-size: 16px;
+        font-weight: 500;
+        color: #374151; /* Dark gray */
+        margin-bottom: 10px;
+      }
+      .section p {
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .input {
+        width: 100%;
+        padding: 10px;
+        font-size: 14px;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        margin-top: 10px;
+      }
+      .legend {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        font-size: 12px;
+        line-height: 1.5;
+        z-index: 1000;
+      }
+      #pieChart {
+        width: 200px;
+        height: 200px;
+        margin: auto;
+        display: block;
+      }
+      #barChart {
+        margin: auto;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🌍 SDG Global Tracker</h1>
+      <p>Visualize contributions to the UN SDGs across the globe.</p>
+      <p><strong>Join the tracking chain:</strong> Download an existing CSV, add your upload, and watch the data build up!</p>
+      <div class="text-center mt-4">
+        <button id="downloadCsv" class="button">Download Existing CSV</button>
+        <div class="credit">
+          by <a href="https://www.linkedin.com/in/sandra-dewi-7776953b/" target="_blank">Sandra Dewi</a> | GMIS Semarang | Environmental Justice in Technology Fellows for Summer 2025
+        </div>
+      </div>
+
+      <!-- File Upload Section -->
+      <div class="section">
+        <h2>Upload CSV File</h2>
+        <input type="file" id="csvFile" accept=".csv" class="input">
+        <p class="format-text">
+          Ensure your CSV follows the correct <a href="https://sthe8121.github.io/sthe8121/EJIT-Bot-SDG-Tracker-Geo-Track/SDGTemplate.csv" target="_blank">format</a>.
+        </p>
+        <p id="errorMessage" style="color: #dc2626; font-size: 12px; margin-top: 10px; display: none;">Invalid CSV format. Please use the provided template.</p>
+      </div>
+
+      <!-- Filtering Section -->
+      <div class="section">
+        <h2>Filter Data</h2>
+        <div class="flex space-x-4 mt-3">
+          <select id="filterSDG" class="input">
+            <option value="">Filter by SDG</option>
+            <option value="SDG 4">SDG 4: Quality Education</option>
+            <option value="SDG 13">SDG 13: Climate Action</option>
+          </select>
+          <select id="filterCountry" class="input">
+            <option value="">Filter by Country</option>
+            <option value="Indonesia">Indonesia</option>
+            <option value="USA">USA</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Pie Chart Section -->
+      <div class="section">
+        <h2>SDG Contributions (Pie Chart)</h2>
+        <canvas id="pieChart"></canvas>
+      </div>
+
+      <!-- Bar Chart Section -->
+      <div class="section">
+        <h2>Contributions by Country (Bar Chart)</h2>
+        <canvas id="barChart"></canvas>
+      </div>
+
+      <!-- Map Section -->
+      <div class="section">
+        <h2>Geotagged Contributions Map</h2>
+        <div id="map" style="height: 400px; width: 100%; position: relative;">
+          <div class="legend" id="legend"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Initialize Leaflet Map
+      const map = L.map('map').setView([20.0, 78.0], 3);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Prefilled Data for Map
+      const sampleMarkers = [
+        { lat: -6.2, lng: 106.8, label: "Indonesia: SDG 4" },
+        { lat: 37.8, lng: -122.4, label: "USA: SDG 13" }
+      ];
+      sampleMarkers.forEach(marker => {
+        L.marker([marker.lat, marker.lng]).addTo(map).bindPopup(marker.label);
+      });
+
+      // Prefilled Data for Charts
+      const pieChartCtx = document.getElementById('pieChart').getContext('2d');
+      const barChartCtx = document.getElementById('barChart').getContext('2d');
+
+      const pieChart = new Chart(pieChartCtx, {
+        type: 'pie',
+        data: {
+          labels: ['SDG 4: Quality Education', 'SDG 13: Climate Action'],
+          datasets: [{
+            data: [60, 40],
+            backgroundColor: ['#4CAF50', '#FF5722']
+          }]
+        }
+      });
+
+      const barChart = new Chart(barChartCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Indonesia', 'USA'],
+          datasets: [{
+            label: 'Contributions',
+            data: [70, 30],
+            backgroundColor: ['#4CAF50', '#FF5722']
+          }]
+        }
+      });
+    </script>
+  </body>
+  </html>
+````
